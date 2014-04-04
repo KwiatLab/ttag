@@ -1,0 +1,39 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libTTag", "libTTag.vcxproj", "{E715A474-C3BF-417F-AFB8-554B6943354B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libTTagTest", "..\libTTagTest\libTTagTest.vcxproj", "{C6C81D53-1DE5-4E1F-9A1A-5ECC8B032DD2}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E715A474-C3BF-417F-AFB8-554B6943354B} = {E715A474-C3BF-417F-AFB8-554B6943354B}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E715A474-C3BF-417F-AFB8-554B6943354B}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E715A474-C3BF-417F-AFB8-554B6943354B}.Debug|Win32.Build.0 = Debug|Win32
+		{E715A474-C3BF-417F-AFB8-554B6943354B}.Debug|x64.ActiveCfg = Debug|x64
+		{E715A474-C3BF-417F-AFB8-554B6943354B}.Debug|x64.Build.0 = Debug|x64
+		{E715A474-C3BF-417F-AFB8-554B6943354B}.Release|Win32.ActiveCfg = Release|Win32
+		{E715A474-C3BF-417F-AFB8-554B6943354B}.Release|Win32.Build.0 = Release|Win32
+		{E715A474-C3BF-417F-AFB8-554B6943354B}.Release|x64.ActiveCfg = Release|x64
+		{E715A474-C3BF-417F-AFB8-554B6943354B}.Release|x64.Build.0 = Release|x64
+		{C6C81D53-1DE5-4E1F-9A1A-5ECC8B032DD2}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C6C81D53-1DE5-4E1F-9A1A-5ECC8B032DD2}.Debug|Win32.Build.0 = Debug|Win32
+		{C6C81D53-1DE5-4E1F-9A1A-5ECC8B032DD2}.Debug|x64.ActiveCfg = Debug|x64
+		{C6C81D53-1DE5-4E1F-9A1A-5ECC8B032DD2}.Debug|x64.Build.0 = Debug|x64
+		{C6C81D53-1DE5-4E1F-9A1A-5ECC8B032DD2}.Release|Win32.ActiveCfg = Release|Win32
+		{C6C81D53-1DE5-4E1F-9A1A-5ECC8B032DD2}.Release|Win32.Build.0 = Release|Win32
+		{C6C81D53-1DE5-4E1F-9A1A-5ECC8B032DD2}.Release|x64.ActiveCfg = Release|x64
+		{C6C81D53-1DE5-4E1F-9A1A-5ECC8B032DD2}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
