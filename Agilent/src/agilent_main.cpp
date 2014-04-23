@@ -367,11 +367,12 @@ static void exitsignal(int signal) {
 
 int main(int argc, char** argv) {
 	//Internal variables
-	boost::thread DMAthread;	//The thread which runs straight acquisition
-	tt_buf* buffer;				//The libTTag buffer: tags are written to it
-	ViInt32* mbuffer;			//The internal microbuffer. It is used as the location for DMA copy from time tagger
-	ViSession timetaggerID;		//The time tagger's ID when opened.
-	uint64_t volatile mwriteloc = 0;		//The location writer is at in the DMA buffer
+	boost::thread* DMAthread;	//The thread which runs straight acquisition
+	boost::thread* Acqthread;	//The thread which adds points to buffer
+	tt_buf** buffer;				//The libTTag buffer: tags are written to it
+	ViInt32** mbuffer;			//The internal microbuffer. It is used as the location for DMA copy from time tagger
+	ViSession* timetaggerID;		//The time tagger's ID when opened.
+	uint64_t* mwriteloc;		//The location writer is at in the DMA buffer
 
 	//Variables that can be set by the user through command line options or configuration file
 	uint64_t buffersize;		//The size of libTTag's buffer
@@ -386,6 +387,7 @@ int main(int argc, char** argv) {
 	float vetovoltage;			//Threshold voltage for veto channel
 	bool vetoedge;				//The edge to trigger veto
 	bool autostart;				//If true, starts taking data immediately (adds a runner)
+	bool multi;					//If true, reads from all available time taggers at once
 	int	agilentbuffer;			//Agilent internal buffer. Setting this to a smaller value allows data to stream despite a low rate of counts.
 	
 	//These are command-line only options
@@ -406,7 +408,7 @@ int main(int argc, char** argv) {
 		("debug,d",po::value<bool>(&debugchannels)->default_value(false),"If true, dumps raw tags without post-processing (FOR DEBUGGING TIME TAGGER ONLY).")
 		("veto",po::value<bool>(&veto)->default_value(true),"Whether or not veto input is enabled.")
 		("autostart",po::value<bool>(&autostart)->default_value(false),"If enabled, starts taking data immediately (adds runner)")
-
+		("multi",po::value<bool>(&multi)->default_value(false),"Whether or not to run multiple time taggers.")
 		("agilentbuffer",po::value<int>(&agilentbuffer)->default_value(TC890_MEMSIZE),"The size, in bytes of the Agilent's internal buffer, up to 8MB. Smaller values allows more frequent data updates.")
     ;
 
@@ -527,66 +529,101 @@ int main(int argc, char** argv) {
         ERROR(-1,"No Time Tagger found! Exiting.");
     }
 
-	cout << "> Initializing" << endl;
-
-	//Initialize time tagger
-	timetaggerID = att_initializeTimeTagger(0,0,reference,8.0,agilentbuffer);
-
-	//Allocate the DMA microbuffer
-	mbuffer = new ViInt32[microbuffersize*TC890_DMASIZE];
-
-	//Create the time tagger's buffer
-	int freebuffer = tt_getNextFree();
-	buffer = tt_create(freebuffer,buffersize);
-
-	//Make sure the time tagger was created, and that a buffer was created for it successfully
-    if (timetaggerID == 0 || !buffer || !mbuffer) {
-        //Oh no! The time tagger failed to initialize!
-        fprintf(stderr,"ERROR: Failed Initialization!\n");
-            
-        //Makes sure we never enter the acquisition loop
-        runAcquisition = 0;
-    } else {
-
-		//Set all channels to their required values
-		for (int i=0;i<6;i++) {
-			att_setChannel(timetaggerID,i+1,channelvoltage[i],channeledge[i]);
-		}
-
-		//Set veto channel
-		if (veto) {
-			att_setChannel(timetaggerID,-2,vetovoltage,vetoedge);
-		} else {
-			att_disableChannel(timetaggerID,-2);
-		}
-
-		//Set the time tagger's resolution
-		tt_setresolution(buffer,5e-11);
-		//Set the number of channels
-		tt_setchannels(buffer,6);
-
-		//If it is to start automatically, add a runner
-		if (autostart) {
-			tt_addrunner(buffer);
-		}
-
-		cout << "> Using buffer " << freebuffer << endl;
-
-		//Start acquisition of data
-		DMAthread = boost::thread(boost::bind(&runTimeTagger,buffer,timetaggerID,mbuffer,microbuffersize,&mwriteloc));
-
-		if (debugchannels)
-			streamTagsToBuffer_DEBUG(buffer,mbuffer,microbuffersize,&mwriteloc);
-		else
-			streamTagsToBuffer(buffer,mbuffer,microbuffersize,&mwriteloc);
-
-		DMAthread.join();
+	if (!multi) {
+		timeTaggerNumber = 1;
 	}
 
+	cout << "> Initializing (" << timeTaggerNumber << ")" << endl;
+
+	//Allocate arrays
+	DMAthread = new boost::thread[timeTaggerNumber];
+	Acqthread = new boost::thread[timeTaggerNumber-1];
+
+	mwriteloc = new uint64_t[timeTaggerNumber];
+	timetaggerID = new ViSession[timeTaggerNumber];
+	mbuffer = new ViInt32*[timeTaggerNumber];
+	buffer = new tt_buf*[timeTaggerNumber];
+
+	for (int q=0;q<timeTaggerNumber;q++) {
+
+		mwriteloc[q] = 0;
+
+		//Initialize time tagger
+		timetaggerID[q] = att_initializeTimeTagger(q,0,reference,8.0,agilentbuffer);
+
+		//Allocate the DMA microbuffer
+		mbuffer[q] = new ViInt32[microbuffersize*TC890_DMASIZE];
+
+		//Create the time tagger's buffer
+		int freebuffer = tt_getNextFree();
+		buffer[q] = tt_create(freebuffer,buffersize);
+
+		//Make sure the time tagger was created, and that a buffer was created for it successfully
+		if (timetaggerID[q] == 0 || !buffer[q] || !mbuffer[q]) {
+			//Oh no! The time tagger failed to initialize!
+			fprintf(stderr,"ERROR: Failed Initialization!\n");
+            
+			//Makes sure we never enter the acquisition loop
+			runAcquisition = 0;
+		} else {
+
+			//Set all channels to their required values
+			for (int i=0;i<6;i++) {
+				att_setChannel(timetaggerID[q],i+1,channelvoltage[i],channeledge[i]);
+			}
+
+			//Set veto channel
+			if (veto) {
+				att_setChannel(timetaggerID[q],-2,vetovoltage,vetoedge);
+			} else {
+				att_disableChannel(timetaggerID[q],-2);
+			}
+
+			//Set the time tagger's resolution
+			tt_setresolution(buffer[q],5e-11);
+			//Set the number of channels
+			tt_setchannels(buffer[q],6);
+
+			//If it is to start automatically, add a runner
+			if (autostart) {
+				tt_addrunner(buffer[q]);
+			}
+
+			cout << "> Using buffer " << freebuffer << endl;
+
+			//Start acquisition of data
+			DMAthread[q] = boost::thread(boost::bind(&runTimeTagger,buffer[q],timetaggerID[q],mbuffer[q],microbuffersize,&(mwriteloc[q])));
+		
+			//Run streaming of tags to buffer in this thread for the last time tagger. Otherwise, run it in a separate thread
+			if (q+1>=timeTaggerNumber) {
+				if (debugchannels)
+					streamTagsToBuffer_DEBUG(buffer[q],mbuffer[q],microbuffersize,&(mwriteloc[q]));
+				else
+					streamTagsToBuffer(buffer[q],mbuffer[q],microbuffersize,&(mwriteloc[q]));
+			} else {
+				if (debugchannels)
+					Acqthread[q] = boost::thread(boost::bind(&streamTagsToBuffer_DEBUG,buffer[q],mbuffer[q],microbuffersize,&(mwriteloc[q])));
+				else
+					Acqthread[q] = boost::thread(boost::bind(&streamTagsToBuffer,buffer[q],mbuffer[q],microbuffersize,&(mwriteloc[q])));	
+			}
+		}
+	}
+
+	for (int q=0;q<timeTaggerNumber;q++) {
+		DMAthread[q].join();
+	}
+	for (int q=0;q<timeTaggerNumber-1;q++) {
+		Acqthread[q].join();
+	}
 	printf("> Cleaning Up...                    \n" );
 
-	tt_close(buffer);
+	
+	for (int q=0;q<timeTaggerNumber;q++) {
+		tt_close(buffer[q]);
+		delete[] mbuffer[q];
+	}
 	delete[] mbuffer;
+	delete[] timetaggerID;
 	//Acqrs_closeAll();	//I am not sure if this is relevant if eact time tagger is in its own process
 
 	system("pause");
