@@ -418,6 +418,9 @@ class TTBuffer(object):
     def __init__(self,buffernumber,create=False,datapoints=50000000):
         self.buffernumber = buffernumber
         
+        #Added to allow getting tags in integer format
+        self.tagsAsTime = True
+
         if (create):
             self.tt_buf = libttag.tt_create(buffernumber,datapoints)
         else:
@@ -497,7 +500,7 @@ class TTBuffer(object):
                 c=c[::step]
                 t=t[::step]
             
-            if (numpy.isnan(self.resolution)):
+            if (numpy.isnan(self.resolution) or self.tagsAsTime==False):
                 return (c,t)
             else:
                 return (c,t.astype(numpy.double)*self.resolution)
@@ -514,7 +517,7 @@ class TTBuffer(object):
             t=ctypes.c_ulonglong()
             
             libttag.tt_readarray(self.tt_buf,i,ctypes.byref(c),ctypes.byref(t),1)
-            if (numpy.isnan(self.resolution)):
+            if (numpy.isnan(self.resolution) or self.tagsAsTime==False):
                 return (c.value,t.value)
             else:
                 return (c.value,t.value*self.resolution)
