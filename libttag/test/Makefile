@@ -64,11 +64,11 @@ bin/%.o: src/% bin dependencies
 bin:
 	mkdir bin
 clean:
-	rm -rf bin $(NAME)
+	rm -rf bin $(NAME);cd ..;make clean
 
 ############################################################################################################
 #Dependencies of the project
 ############################################################################################################
 
 dependencies:
-	cd ..;make
+	cd ..;make CC=$(CC)
