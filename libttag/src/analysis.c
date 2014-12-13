@@ -324,14 +324,14 @@ TT_DEF_ uint64_t* tt_rawcoincidences_nd(const tt_buf *const buffer, uint64_t tim
 	// - dataindex is the location of the most recent data point
 	// - dataMin is the minimum time tag to allow for each channel
 
-	for (; dataindex != ~((uint64_t)0) && tt_tag(buffer, dataindex) >= dataMin; dataindex--) {
+	for (; dataindex != ~((uint64_t)0) && tt_minindex(buffer) <= dataindex && tt_tag(buffer, dataindex) >= dataMin; dataindex--) {
 		//Only find coincidences between defined channels
 		if (tt_channel(buffer, dataindex) < channels) {
 
 			//We add the singles counts on the diagonal, rather than coincidences. This is to match the behavior of tt_coincidences
 			coincidenceMatrix[(channels + 1)*tt_channel(buffer, dataindex)]++;
 
-				for (i = dataindex - 1; i != ~((uint64_t)0) && tt_tag(buffer, i) >= dataMin && tt_tag(buffer, i) + radius >= tt_tag(buffer, dataindex); i--) {
+			for (i = dataindex - 1; i != ~((uint64_t)0) && tt_minindex(buffer) <= i && tt_tag(buffer, i) >= dataMin && tt_tag(buffer, i) + radius >= tt_tag(buffer, dataindex); i--) {
 					//Once again, we imitate the tt_coincidences functionality, where the diagonal is singles, not coincidences
 					if (tt_channel(buffer, i) != tt_channel(buffer, dataindex) && tt_channel(buffer, i) < channels) {
 						coincidenceMatrix[channels*tt_channel(buffer, dataindex) + tt_channel(buffer, i)]++;
